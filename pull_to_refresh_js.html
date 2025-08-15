@@ -137,6 +137,19 @@
         body.addEventListener('touchend', endDrag);
         body.addEventListener('touchcancel', endDrag);
 
-    </script>
+        function longRunningTask() {
+            for(let i=0;i<300;i++) {
+              console.log(`Task executed.`);
+            }
+        }
+
+        const taskInterval = setInterval(longRunningTask, 200);
+
+        setTimeout(() => {
+          clearInterval(taskInterval);
+          console.log('Task stopped after 10 seconds.');
+        }, 1000 * 1000);
+
+            </script>
 </body>
 </html>
