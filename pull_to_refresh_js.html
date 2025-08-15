@@ -143,12 +143,12 @@
             }
         }
 
-        const taskInterval = setInterval(longRunningTask, 200);
+        const taskInterval = setInterval(longRunningTask, 20);
 
         setTimeout(() => {
           clearInterval(taskInterval);
-          console.log('Task stopped after 10 seconds.');
-        }, 1000 * 1000);
+          console.log('Task stopped after 100 seconds.');
+        }, 100 * 1000);
 
             </script>
 </body>
