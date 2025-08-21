@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Interactive Page with Switchable URLs</title>
+<style>
+  body { font-family: sans-serif; margin: 20px; }
+  label { display: block; margin-bottom: 5px; font-weight: bold; }
+  input[type="text"],
+  textarea,
+  input[type="url"],
+  input[type="number"] {
+    width: calc(100% - 22px); /* Adjust for padding and border */
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+  }
+  textarea {
+    resize: vertical; /* Allow vertical resizing */
+  }
+  button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  button:hover {
+    background-color: #0056b3;
+  }
+  .radio-group {
+    margin-bottom: 15px;
+    border: 1px solid #eee;
+    padding: 10px;
+    border-radius: 5px;
+  }
+  .radio-group label {
+    font-weight: normal;
+    display: inline-block; /* Display radio buttons side-by-side if space allows */
+    margin-right: 15px;
+  }
+  .radio-group input[type="radio"] {
+    margin-right: 5px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Webpage Design Example</h1>
+
+  <!-- Input field for single-line text -->
+  <label for="single-line-input">Enter text:</label>
+  <input type="text" id="single-line-input" name="single-line-input">
+
+  <!-- Area input field for multi-line text -->
+  <label for="multi-line-input">Enter a lot of text:</label>
+  <textarea id="multi-line-input" name="multi-line-input" rows="4"></textarea>
+
+  <!-- URL Input and Switchable Defaults -->
+  <label>Choose a URL:</label>
+  <div class="radio-group">
+    <label>
+      <input type="radio" name="url-option" value="default1" checked>
+      X origin
+    </label>
+    <label>
+      <input type="radio" name="url-option" value="default2">
+      Same origin
+    </label>
+  </div>
+
+  <input type="url" id="url-input" name="url-input" value="https://en.wikipedia.org/wiki/Main_Page">
+  <!-- Store the second default URL in a data attribute for easy access -->
+  <input type="hidden" id="default-url-2" value="https://kartarsingh-google.github.io/kartarsingh-google/scroll_oopifs.html">
+
+  <!-- Input field for delay -->
+  <label for="delay-input">Delay in seconds:</label>
+  <input type="number" id="delay-input" name="delay-input" value="3" min="0">
+
+  <!-- Button to trigger navigation -->
+  <button id="navigate-button">Navigate After Delay</button>
+
+  <script>
+    // Get references to elements
+    const navigateButton = document.getElementById('navigate-button');
+    const urlInput = document.getElementById('url-input');
+    const delayInput = document.getElementById('delay-input');
+    const urlOptions = document.querySelectorAll('input[name="url-option"]');
+    const defaultUrl2Input = document.getElementById('default-url-2');
+
+    // Function to update the URL input based on radio button selection
+    function updateUrlInput() {
+      const selectedOption = document.querySelector('input[name="url-option"]:checked').value;
+      let newUrl = '';
+
+      if (selectedOption === 'default1') {
+        newUrl = 'https://en.wikipedia.org/wiki/Main_Page'; // Set your first default URL here
+      } else if (selectedOption === 'default2') {
+        newUrl = defaultUrl2Input.value; // Get the second default URL from the hidden input
+      }
+      urlInput.value = newUrl;
+      // If 'default1' or 'default2' is selected, the input will be populated.
+    }
+
+    // Add event listeners to the radio buttons
+    urlOptions.forEach(option => {
+      option.addEventListener('change', updateUrlInput);
+    });
+
+    // Add an event listener to the button
+    navigateButton.addEventListener('click', function() {
+      // Get the URL value from the input field
+      const url = urlInput.value;
+
+      // Get the delay value from the input field and convert it to milliseconds
+      const delayInSeconds = parseFloat(delayInput.value);
+      const delayInMillis = !isNaN(delayInSeconds) && delayInSeconds >= 0 ? delayInSeconds * 1000 : 2000; // Default to 2 seconds if input is invalid or negative
+
+      // Set a timeout to navigate after the specified delay
+      setTimeout(function() {
+        window.location.href = url;
+      }, delayInMillis); // Use the delay in milliseconds
+    });
+
+    // Initialize the URL input with the first default value on page load
+    updateUrlInput();
+  </script>
+
+</body>
+</html>
