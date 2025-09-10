@@ -1,0 +1,60 @@
+
+<html>
+  <head>
+    <style>
+      body {
+        height: 10000px;
+      }
+    </style>
+  </head>
+  <body>
+      <div style="font-size: 24px">
+          <button style="padding: 15px 30px; font-size: 18px;" id="disableTouchBtn">Disable Touch Actions</button>
+          <button style="padding: 15px 30px; font-size: 18px;" id="enableTouchBtn">Enable Touch Actions</button>
+                touch-action: <span id="touchActionStatus" style="color: green"></span>
+      </div>
+
+  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+<p>The purpose of lorem ipsum is to create a natural looking block of text (sentence, paragraph, page, etc.) that doesn't distract from the layout. Lorem ipsum is placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. Lorem ipsum may be used as a placeholder before final copy is available. It is also used to temporarily replace text in a process called greeking, which allows designers to consider the form of a webpage or publication without the meaning of the text influencing the design.</p>
+<p>Lorem ipsum is typically a corrupted version of De Finibus Bonorum et Malorum, a 1st-century BC text by the Roman statesman and philosopher Cicero, with words altered, added, and removed to make it nonsensical and improper Latin. Versions of the Lorem ipsum text have been used in typesetting since the 1960s, when Letraset sheets containing Lorem Ipsum passages became popular. It was popularised in the 1960s with Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+<p>Lorem Ipsum has been the industry'setTouchActionBtns standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+     <h1>Lorem Ipsum</h1>
+<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+<p>The purpose of lorem ipsum is to create a natural looking block of text (sentence, paragraph, page, etc.) that doesn't distract from the layout. Lorem ipsum is placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. Lorem ipsum may be used as a placeholder before final copy is available. It is also used to temporarily replace text in a process called greeking, which allows designers to consider the form of a webpage or publication without the meaning of the text influencing the design.</p>
+<p>Lorem ipsum is typically a corrupted version of De Finibus Bonorum et Malorum, a 1st-century BC text by the Roman statesman and philosopher Cicero, with words altered, added, and removed to make it nonsensical and improper Latin. Versions of the Lorem ipsum text have been used in typesetting since the 1960s, when Letraset sheets containing Lorem Ipsum passages became popular. It was popularised in the 1960s with Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+<p>Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+    </div>
+    <script>
+    const disableTouchBtn = document.getElementById('disableTouchBtn');
+    const enableTouchBtn = document.getElementById('enableTouchBtn');
+    const bodyElement = document.body;
+    const touchActionStatusSpan = document.getElementById('touchActionStatus');
+
+    function updateStatusDisplay() {
+      // Use getComputedStyle to get the actual applied touch-action value
+      const currentTouchAction = window.getComputedStyle(bodyElement).getPropertyValue('touch-action');
+      touchActionStatusSpan.textContent = currentTouchAction;
+    }
+
+      // Function to disable touch actions
+    function disableTouchActions() {
+      bodyElement.style.touchAction = 'none';
+      console.log('Touch action for body set to: none');
+    }
+
+    // Function to enable touch actions
+    function enableTouchActions() {
+      bodyElement.style.touchAction = 'auto'; // 'auto' restores default browser behavior
+      console.log('Touch action for body set to: auto');
+    }
+
+    // Add event listeners to the buttons
+    disableTouchBtn.addEventListener('click', disableTouchActions);
+    enableTouchBtn.addEventListener('click', enableTouchActions);
+        window.addEventListener('load', updateStatusDisplay);
+
+</script>
+  </body>
+</html>
+
+
