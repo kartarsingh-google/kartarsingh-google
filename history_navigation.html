@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>History Navigation - Back & Front</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+      text-align: center;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 25px;
+    }
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .btn-back {
+      background-color: #007bff;
+      color: white;
+    }
+    .btn-back:hover {
+      background-color: #0056b3;
+    }
+    .btn-front {
+      background-color: #28a745;
+      color: white;
+    }
+    .btn-front:hover {
+      background-color: #1e7e34;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .controls-container {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+    }
+    .btn-push {
+      background-color: #6c757d;
+      color: white;
+      font-size: 14px;
+      padding: 8px 16px;
+    }
+    .btn-push:hover {
+      background-color: #5a6268;
+    }
+    .info-box {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      text-align: left;
+      font-size: 14px;
+    }
+    .info-box span {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>History Navigation</h1>
+  <p>Use the buttons below to navigate back and front in browser history.</p>
+
+  <div class="button-container">
+    <button id="back-btn" class="btn-back" onclick="goBack()">Back</button>
+    <button id="front-btn" class="btn-front" onclick="goFront()">Front</button>
+  </div>
+
+  <div class="controls-container">
+    <button id="push-state-btn" class="btn-push" onclick="addHistoryEntry()">Push History State</button>
+  </div>
+
+  <div class="info-box">
+    <div><span>History Length:</span> <span id="history-length">0</span></div>
+    <div><span>Current State:</span> <span id="current-state">Initial Page</span></div>
+  </div>
+
+  <script>
+    let stateCounter = 0;
+
+    function goBack() {
+      window.history.back();
+    }
+
+    function goFront() {
+      window.history.forward();
+    }
+
+    function addHistoryEntry() {
+      stateCounter++;
+      const stateObj = { page: stateCounter };
+      const title = `Page ${stateCounter}`;
+      const url = `?page=${stateCounter}`;
+      window.history.pushState(stateObj, title, url);
+      updateStatus(`Pushed State #${stateCounter}`);
+    }
+
+    function updateStatus(stateLabel) {
+      document.getElementById('history-length').textContent = window.history.length;
+      document.getElementById('current-state').textContent = stateLabel || (window.history.state ? `State #${window.history.state.page}` : 'Initial Page');
+    }
+
+    window.addEventListener('popstate', (event) => {
+      if (event.state && event.state.page !== undefined) {
+        updateStatus(`State #${event.state.page}`);
+      } else {
+        updateStatus('Initial Page');
+      }
+    });
+
+    // Initialize status on page load
+    updateStatus();
+  </script>
+
+</body>
+</html>
