@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Compositor-driven scrollable overlay demonstration utilizing a 100vh transparent spacer, CSS Scroll Snap, and native browser engine gesture handling with 30% displacement dismissal.">
+  <title>Compositor Scroll Overlay with Transparent Spacer & 30% Dismiss</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❖</text></svg>">
+
+  <style>
+    /* Design System & CSS Variables */
+    :root {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-subtle: #f1f5f9;
+      --bg-overlay: #ffffff;
+      --bg-overlay-glass: rgba(255, 255, 255, 0.92);
+      --bg-backdrop: rgba(15, 23, 42, 0.55);
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --text-inverted: #ffffff;
+
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-subtle: #eff6ff;
+      --accent-border: #bfdbfe;
+
+      --success: #059669;
+      --success-subtle: #ecfdf5;
+      --success-border: #a7f3d0;
+
+      --warning: #d97706;
+      --warning-subtle: #fffbeb;
+      --warning-border: #fde68a;
+
+      --danger: #dc2626;
+
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      --shadow-sheet: 0 -12px 36px rgba(0, 0, 0, 0.18), 0 24px 48px rgba(0, 0, 0, 0.22);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+
+      --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    }
+
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Prevent root scrolling when overlay is active */
+    body.overlay-open {
+      overflow: hidden;
+    }
+
+    /* App Container */
+    .app-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navigation Bar */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-light);
+      padding: 1rem 2rem;
+    }
+
+    .nav-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
+      color: #fff;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .nav-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--radius-full);
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border: 1px solid var(--accent-border);
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 3.5rem 2rem 5rem;
+      width: 100%;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto 3.5rem;
+    }
+
+    .hero-subtitle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .hero-subtitle::before,
+    .hero-subtitle::after {
+      content: '';
+      width: 24px;
+      height: 1px;
+      background: var(--accent-border);
+    }
+
+    .hero-title {
+      font-size: 2.75rem;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-description {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 2.25rem;
+    }
+
+    /* Trigger Button Container */
+    .cta-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 1rem 2.25rem;
+      border-radius: var(--radius-lg);
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      transition: all 0.2s var(--ease-out);
+      user-select: none;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-kbd {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.15rem 0.45rem;
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 4px;
+      margin-left: 0.25rem;
+    }
+
+    .cta-hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Specifications Grid */
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .spec-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .spec-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .spec-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: var(--bg-card-subtle);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .spec-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.5rem;
+    }
+
+    .spec-desc {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* Live Testing Guide */
+    .guide-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .guide-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .guide-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .input-pill-group {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .input-pill {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--radius-full);
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-light);
+      color: var(--text-secondary);
+    }
+
+    .guide-steps {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .guide-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-subtle);
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+
+    .step-body {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    .step-body strong {
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       COMPOSITOR SCROLL OVERLAY ARCHITECTURE
+       ========================================================================== */
+
+    /* Fixed Fullscreen Dialog Shell */
+    .fullscreen-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1000;
+      visibility: hidden;
+      pointer-events: none;
+      transition: visibility 0.25s ease;
+    }
+
+    .fullscreen-overlay.is-active {
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    /* Fixed Backdrop Behind Scroller */
+    .overlay-backdrop {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-backdrop);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      will-change: opacity;
+      pointer-events: none;
+      z-index: 1001;
+    }
+
+    .fullscreen-overlay.is-active .overlay-backdrop {
+      opacity: 1;
+    }
+
+    /* Fixed 30% Threshold Line */
+    .threshold-marker {
+      position: fixed;
+      top: 30vh;
+      left: 0;
+      right: 0;
+      height: 2px;
+      border-top: 2px dashed rgba(37, 99, 235, 0.4);
+      pointer-events: none;
+      z-index: 1005;
+      opacity: 0;
+      transition: opacity 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 1.5rem;
+    }
+
+    .fullscreen-overlay.is-active.is-scrolling-spacer .threshold-marker {
+      opacity: 1;
+    }
+
+    .threshold-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+      background: rgba(37, 99, 235, 0.15);
+      color: var(--accent);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--accent-border);
+      transform: translateY(-50%);
+      transition: all 0.2s ease;
+    }
+
+    .threshold-marker.reached {
+      border-top-color: rgba(5, 150, 105, 0.8);
+    }
+
+    .threshold-marker.reached .threshold-badge {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
+    }
+
+    /* Fixed Pull Progress Pill */
+    .pull-progress-pill {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1006;
+      background: rgba(15, 23, 42, 0.88);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.4rem 1rem;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .fullscreen-overlay.is-active.is-scrolling-spacer .pull-progress-pill {
+      opacity: 1;
+    }
+
+    .progress-bar-track {
+      width: 60px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #60a5fa;
+      border-radius: 3px;
+      transition: width 0.05s linear, background-color 0.2s ease;
+    }
+
+    .pull-progress-pill.reached .progress-bar-fill {
+      background: #34d399;
+    }
+
+    /* ==========================================================================
+       NATIVE COMPOSITOR SCROLLER
+       ========================================================================== */
+
+    .overlay-scroller {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      z-index: 1002;
+      touch-action: pan-y;
+      scroll-behavior: auto;
+    }
+
+    /* 1. Transparent Space above Overlay Header (100vh) */
+    .transparent-spacer {
+      width: 100%;
+      height: 100vh;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    /* 2. Overlay Sheet Container */
+    .overlay-sheet {
+      width: 100%;
+      min-height: 100vh;
+      background: var(--bg-overlay);
+      box-shadow: var(--shadow-sheet);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Sticky Header inside Overlay Sheet */
+    .overlay-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--bg-overlay-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-light);
+      padding: 0.75rem 1.5rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+    }
+
+    .drag-handle-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding-bottom: 0.5rem;
+      cursor: pointer;
+    }
+
+    .drag-handle {
+      width: 48px;
+      height: 5px;
+      background: var(--border-medium);
+      border-radius: var(--radius-full);
+      transition: background-color 0.2s ease, width 0.2s ease;
+    }
+
+    .drag-handle-container:hover .drag-handle {
+      background: var(--text-secondary);
+      width: 56px;
+    }
+
+    .overlay-header-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .overlay-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .overlay-status-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border: 1px solid var(--accent-border);
+    }
+
+    .overlay-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .overlay-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card-subtle);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-close:hover {
+      background: var(--border-light);
+      color: var(--text-primary);
+      transform: scale(1.05);
+    }
+
+    /* Content Area inside Overlay Sheet */
+    .overlay-scroll-container {
+      flex: 1;
+      padding: 2.5rem 1.5rem 5rem;
+    }
+
+    .article-wrapper {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .article-header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 1.5rem;
+    }
+
+    .article-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .article-headline {
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+    }
+
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .article-meta span {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .gesture-tip-box {
+      background: var(--accent-subtle);
+      border: 1px solid var(--accent-border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .tip-icon {
+      font-size: 1.5rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .tip-content h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-hover);
+      margin-bottom: 0.25rem;
+    }
+
+    .tip-content p {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .article-section {
+      margin-bottom: 2.5rem;
+    }
+
+    .article-section h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin-bottom: 0.85rem;
+      color: var(--text-primary);
+    }
+
+    .article-section p {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 1.25rem;
+    }
+
+    .diagram-card {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin: 1.75rem 0;
+    }
+
+    .diagram-header {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .diagram-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .diagram-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .diagram-step-val {
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+
+    .diagram-step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .code-preview {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      overflow-x: auto;
+      line-height: 1.5;
+      margin: 1.5rem 0;
+    }
+
+    .code-keyword { color: #f472b6; }
+    .code-func { color: #60a5fa; }
+    .code-prop { color: #34d399; }
+    .code-num { color: #fbbf24; }
+    .code-comment { color: #64748b; font-style: italic; }
+
+    .article-footer {
+      text-align: center;
+      padding: 2.5rem 0 1rem;
+      border-top: 1px solid var(--border-light);
+      margin-top: 2rem;
+    }
+
+    .btn-scroll-top {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-light);
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-scroll-top:hover {
+      background: var(--border-light);
+      color: var(--text-primary);
+    }
+
+    /* Diagnostics Dock */
+    .diagnostics-dock {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 1100;
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: var(--shadow-xl);
+      width: 320px;
+      transition: transform 0.3s var(--ease-spring), opacity 0.2s ease;
+    }
+
+    .diagnostics-dock.is-collapsed .dock-body {
+      display: none;
+    }
+
+    .dock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .dock-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .dock-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 8px #34d399;
+    }
+
+    .dock-toggle-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .dock-body {
+      padding: 0.85rem 1rem;
+    }
+
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .telemetry-item {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.6rem;
+    }
+
+    .telemetry-label {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .telemetry-value {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .telemetry-value.active { color: #60a5fa; }
+    .telemetry-value.success { color: #34d399; }
+
+    .dock-controls {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .dock-control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #cbd5e1;
+    }
+
+    .log-mini {
+      margin-top: 0.5rem;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: #94a3b8;
+      height: 48px;
+      overflow-y: hidden;
+      display: flex;
+      flex-direction: column-reverse;
+    }
+
+    @media (max-width: 640px) {
+      .navbar { padding: 0.85rem 1rem; }
+      .main-content { padding: 2rem 1rem 4rem; }
+      .hero-title { font-size: 2rem; }
+      .hero-description { font-size: 1rem; }
+      .specs-grid { grid-template-columns: 1fr; }
+      .diagnostics-dock { right: 0.75rem; bottom: 0.75rem; width: calc(100vw - 1.5rem); }
+      .overlay-scroll-container { padding: 1.5rem 1rem 4rem; }
+      .article-headline { font-size: 1.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Navbar -->
+    <header class="navbar">
+      <div class="nav-content">
+        <div class="brand">
+          <div class="brand-icon">❖</div>
+          <span class="brand-title">MotionLab</span>
+        </div>
+        <span class="nav-badge">Compositor Scroll Demo</span>
+      </div>
+    </header>
+
+    <!-- Main Landing View -->
+    <main class="main-content">
+      <!-- Hero -->
+      <section class="hero">
+        <div class="hero-subtitle">Chromium Input & Compositor Scroll</div>
+        <h1 class="hero-title">Native Compositor Scroll Overlay with Transparent Spacer</h1>
+        <p class="hero-description">
+          A pure browser-engine-driven overlay. A 100vh transparent space above the header allows Chromium's compositor to handle the gesture natively, with CSS Scroll Snap restoring position and a 30% displacement threshold dismissal evaluated on scrollend.
+        </p>
+
+        <div class="cta-group">
+          <button id="open-overlay-btn" class="btn-primary" aria-haspopup="dialog" aria-expanded="false">
+            <span>Open Fullscreen Overlay</span>
+            <kbd class="btn-kbd">O</kbd>
+          </button>
+          <span class="cta-hint">Press <kbd>O</kbd> or click the button above • Press <kbd>Esc</kbd> anytime to dismiss</span>
+        </div>
+      </section>
+
+      <!-- Specifications Grid -->
+      <section class="specs-grid">
+        <div class="spec-card">
+          <div class="spec-icon">⚡</div>
+          <h2 class="spec-title">1. Compositor Thread Scrolling</h2>
+          <p class="spec-desc">
+            No JavaScript drag math or touch intervention. The entire scroll and pull gesture is processed natively by the browser's compositor at full device refresh rate.
+          </p>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-icon">◻</div>
+          <h2 class="spec-title">2. 100vh Transparent Spacer</h2>
+          <p class="spec-desc">
+            Located directly above the overlay header. Scrolling into this transparent space translates the overlay downward naturally. Tapping the transparent spacer dismisses the overlay.
+          </p>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-icon">⚓</div>
+          <h2 class="spec-title">3. CSS Snap & 30% Threshold</h2>
+          <p class="spec-desc">
+            CSS Scroll Snap aligns the overlay at the open position. On scrollend, if displacement exceeds 30% of the viewport height, the overlay completely closes; otherwise CSS snap restores it.
+          </p>
+        </div>
+      </section>
+
+      <!-- Live Testing Guide -->
+      <section class="guide-card">
+        <div class="guide-header">
+          <h3 class="guide-title">How to Test the Compositor Gestures</h3>
+          <div class="input-pill-group">
+            <span class="input-pill">Compositor Touch</span>
+            <span class="input-pill">Trackpad / Mouse Wheel</span>
+            <span class="input-pill">CSS Scroll Snap</span>
+          </div>
+        </div>
+
+        <ol class="guide-steps">
+          <li class="guide-step">
+            <span class="step-num">1</span>
+            <div class="step-body">
+              <strong>Open the Overlay:</strong> Click "Open Fullscreen Overlay" or tap <kbd>O</kbd>. The scroller instantly opens snapped to the overlay header with backdrop fade-in.
+            </div>
+          </li>
+          <li class="guide-step">
+            <span class="step-num">2</span>
+            <div class="step-body">
+              <strong>Inspect Content Scrolling:</strong> Scroll down through the article. The header sticks neatly to the top while content scrolls fluidly.
+            </div>
+          </li>
+          <li class="guide-step">
+            <span class="step-num">3</span>
+            <div class="step-body">
+              <strong>Scroll/Drag Down into Transparent Space:</strong> Scroll back to the top of the article and continue scrolling/dragging down. The overlay moves down into the transparent space, 100% driven by compositor scroll.
+            </div>
+          </li>
+          <li class="guide-step">
+            <span class="step-num">4</span>
+            <div class="step-body">
+              <strong>Observe 30% Threshold on Scrollend:</strong> If released at &lt; 30%, native CSS Scroll Snap springs the overlay back to the open position. If displacement reaches <strong>more than 30%</strong>, the overlay completely dismisses on gesture end!
+            </div>
+          </li>
+        </ol>
+      </section>
+    </main>
+  </div>
+
+  <!-- ==========================================================================
+       FULLSCREEN OVERLAY DIALOG
+       ========================================================================== -->
+  <div id="fullscreen-overlay" class="fullscreen-overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+    <!-- Fixed Backdrop -->
+    <div id="overlay-backdrop" class="overlay-backdrop"></div>
+
+    <!-- Fixed 30% Visual Threshold Line -->
+    <div id="threshold-marker" class="threshold-marker">
+      <span class="threshold-badge">30% Dismiss Threshold</span>
+    </div>
+
+    <!-- Fixed Real-time Progress Pill -->
+    <div id="pull-progress-pill" class="pull-progress-pill">
+      <span id="pull-percentage-text">0% Moved</span>
+      <div class="progress-bar-track">
+        <div id="progress-bar-fill" class="progress-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- NATIVE COMPOSITOR SCROLLER -->
+    <div id="overlay-scroller" class="overlay-scroller">
+      <!-- 1. Transparent space above overlay-header (100vh) -->
+      <div id="transparent-spacer" class="transparent-spacer" title="Click transparent backdrop to close"></div>
+
+      <!-- 2. Overlay Sheet Container with CSS scroll-snap-align: start -->
+      <div id="overlay-sheet" class="overlay-sheet">
+        <!-- Sticky Header -->
+        <header id="overlay-header" class="overlay-header">
+          <div id="drag-handle-container" class="drag-handle-container" title="Drag down or scroll down to dismiss">
+            <div class="drag-handle"></div>
+          </div>
+
+          <div class="overlay-header-row">
+            <div class="overlay-title-group">
+              <span class="overlay-status-pill">Compositor Scroll</span>
+              <h2 id="overlay-title" class="overlay-title">Compositor Scroll & Native Engine Gestures</h2>
+            </div>
+
+            <div class="overlay-actions">
+              <button id="close-overlay-btn" class="btn-close" aria-label="Close overlay (Esc)">✕</button>
+            </div>
+          </div>
+        </header>
+
+        <!-- Scrollable Article Content -->
+        <div id="overlay-scroll-container" class="overlay-scroll-container">
+          <article class="article-wrapper">
+            <div class="article-header">
+              <span class="article-tag">Compositor Architecture</span>
+              <h1 class="article-headline">Zero-JS Gesture Derivation: Off-Main-Thread Compositor Scroll</h1>
+              <div class="article-meta">
+                <span>By Chromium Performance Team</span>
+                <span>•</span>
+                <span>5 min read</span>
+                <span>•</span>
+                <span>Blink / cc ScrollTree</span>
+              </div>
+            </div>
+
+            <!-- Interactive Tip Box -->
+            <div class="gesture-tip-box">
+              <div class="tip-icon">⇣</div>
+              <div class="tip-content">
+                <h4>Compositor Scroll Mechanics</h4>
+                <p>
+                  Above this header is a <strong>100vh transparent spacer</strong>. When you scroll or drag down at the top, the browser's compositor thread handles the scroll natively. On <strong>scrollend</strong>, if displacement is &gt; 30%, the overlay completely closes; if &le; 30%, CSS Scroll Snap springs it back!
+                </p>
+              </div>
+            </div>
+
+            <!-- Section 1 -->
+            <section class="article-section">
+              <h2>1. Why Compositor Scrolling Outperforms JS Derivation</h2>
+              <p>
+                When web applications manually intercept <code style="font-family: var(--font-mono); font-size: 0.9em; background: var(--bg-card-subtle); padding: 2px 6px; border-radius: 4px;">touchstart</code> and <code style="font-family: var(--font-mono); font-size: 0.9em; background: var(--bg-card-subtle); padding: 2px 6px; border-radius: 4px;">touchmove</code> with non-passive event listeners, every touch packet is forced to hop from the browser's input router onto the JavaScript main thread. If the main thread experiences heavy garbage collection or layout reflows, input latency immediately degrades.
+              </p>
+              <p>
+                By creating a native scroller with a transparent spacer above the header, Chromium's compositor thread (<code style="font-family: var(--font-mono); font-size: 0.9em; background: var(--bg-card-subtle); padding: 2px 6px; border-radius: 4px;">cc::InputHandler</code>) handles the gesture at 120Hz completely off the main thread.
+              </p>
+
+              <div class="diagram-card">
+                <div class="diagram-header">Compositor Layer Hierarchy</div>
+                <div class="diagram-steps">
+                  <div class="diagram-step">
+                    <div class="diagram-step-val">0vh - 100vh</div>
+                    <div class="diagram-step-label">Transparent Spacer (Backdrop)</div>
+                  </div>
+                  <div class="diagram-step">
+                    <div class="diagram-step-val">100vh (Snap)</div>
+                    <div class="diagram-step-label">Sticky Header & Sheet Top</div>
+                  </div>
+                  <div class="diagram-step">
+                    <div class="diagram-step-val">&gt; 100vh</div>
+                    <div class="diagram-step-label">Independent Article Content</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Section 2 -->
+            <section class="article-section">
+              <h2>2. Native CSS Scroll Snap Alignment</h2>
+              <p>
+                The sheet element is configured with <code style="font-family: var(--font-mono); font-size: 0.9em; background: var(--bg-card-subtle); padding: 2px 6px; border-radius: 4px;">scroll-snap-align: start</code>. When the user releases after pulling down into the transparent spacer, if the displacement is below 30%, the compositor's native snap algorithm restores the scroller back to the 100vh position without requiring manual spring math in JavaScript.
+              </p>
+              <div class="code-preview">
+<span class="code-comment">/* Native Compositor Configuration */</span>
+<span class="code-keyword">.overlay-scroller</span> {
+  <span class="code-prop">scroll-snap-type</span>: y mandatory;
+  <span class="code-prop">overscroll-behavior-y</span>: contain;
+}
+
+<span class="code-keyword">.overlay-sheet</span> {
+  <span class="code-prop">scroll-snap-align</span>: start;
+  <span class="code-prop">scroll-snap-stop</span>: always;
+}
+              </div>
+            </section>
+
+            <!-- Section 3 -->
+            <section class="article-section">
+              <h2>3. Listening to Offset & The 30% Threshold</h2>
+              <p>
+                The website simply queries the scroll offset of the compositor scroller. As the user scrolls into the transparent spacer:
+              </p>
+              <div class="code-preview">
+<span class="code-keyword">const</span> displacement = spacerHeight - scroller.scrollTop;
+<span class="code-keyword">if</span> (displacement &gt;= spacerHeight * <span class="code-num">0.30</span>) {
+  <span class="code-comment">// On scrollend: Dismiss overlay completely</span>
+  closeOverlay();
+}
+              </div>
+              <p>
+                Try scrolling through this article to confirm that scrolling is 100% natural, and then scroll/pull down from the top to observe the compositor-driven dismiss gesture!
+              </p>
+            </section>
+
+            <!-- Article Footer with Back to Top -->
+            <div class="article-footer">
+              <button id="btn-scroll-top" class="btn-scroll-top">
+                <span>↑ Scroll Back to Header</span>
+              </button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       FLOATING DIAGNOSTICS & TELEMETRY DOCK
+       ========================================================================== -->
+  <aside id="diagnostics-dock" class="diagnostics-dock">
+    <div id="dock-header" class="dock-header">
+      <div class="dock-title">
+        <span class="dock-status-dot"></span>
+        <span>Compositor Telemetry</span>
+      </div>
+      <button id="dock-toggle-btn" class="dock-toggle-btn" aria-label="Toggle telemetry panel">▼</button>
+    </div>
+
+    <div class="dock-body">
+      <div class="telemetry-grid">
+        <div class="telemetry-item">
+          <div class="telemetry-label">Overlay State</div>
+          <div id="stat-state" class="telemetry-value">CLOSED</div>
+        </div>
+        <div class="telemetry-item">
+          <div class="telemetry-label">Scroller ScrollTop</div>
+          <div id="stat-scrolltop" class="telemetry-value">0px</div>
+        </div>
+        <div class="telemetry-item">
+          <div class="telemetry-label">Displacement</div>
+          <div id="stat-displacement" class="telemetry-value">0px (0%)</div>
+        </div>
+        <div class="telemetry-item">
+          <div class="telemetry-label">30% Threshold</div>
+          <div id="stat-threshold" class="telemetry-value">0px</div>
+        </div>
+        <div class="telemetry-item">
+          <div class="telemetry-label">Layer Region</div>
+          <div id="stat-region" class="telemetry-value">CLOSED</div>
+        </div>
+        <div class="telemetry-item">
+          <div class="telemetry-label">Compositor Mode</div>
+          <div class="telemetry-value success">NATIVE</div>
+        </div>
+      </div>
+
+      <div class="dock-controls">
+        <div class="dock-control-row">
+          <span>Engine Status</span>
+          <span style="font-family: var(--font-mono); font-size: 0.75rem; color: #34d399;">Active Compositor</span>
+        </div>
+      </div>
+
+      <div id="log-mini" class="log-mini">
+        <div>[System Ready]</div>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    /**
+     * Compositor Scroll Architecture Engine
+     * - Native browser engine handles 100% of gestures
+     * - 100vh transparent space above header
+     * - CSS Scroll Snap aligns to overlay sheet
+     * - Website listens to scroll offset and evaluates 30% threshold on scrollend
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+      // DOM References
+      const openOverlayBtn = document.getElementById('open-overlay-btn');
+      const closeOverlayBtn = document.getElementById('close-overlay-btn');
+      const fullscreenOverlay = document.getElementById('fullscreen-overlay');
+      const overlayBackdrop = document.getElementById('overlay-backdrop');
+      const overlayScroller = document.getElementById('overlay-scroller');
+      const transparentSpacer = document.getElementById('transparent-spacer');
+      const overlaySheet = document.getElementById('overlay-sheet');
+      const thresholdMarker = document.getElementById('threshold-marker');
+      const pullProgressPill = document.getElementById('pull-progress-pill');
+      const pullPercentageText = document.getElementById('pull-percentage-text');
+      const progressBarFill = document.getElementById('progress-bar-fill');
+      const btnScrollTop = document.getElementById('btn-scroll-top');
+
+      // Diagnostics References
+      const diagnosticsDock = document.getElementById('diagnostics-dock');
+      const dockHeader = document.getElementById('dock-header');
+      const dockToggleBtn = document.getElementById('dock-toggle-btn');
+      const statState = document.getElementById('stat-state');
+      const statScrolltop = document.getElementById('stat-scrolltop');
+      const statDisplacement = document.getElementById('stat-displacement');
+      const statThreshold = document.getElementById('stat-threshold');
+      const statRegion = document.getElementById('stat-region');
+      const logMini = document.getElementById('log-mini');
+
+      const THRESHOLD_RATIO = 0.30;
+      let isOpen = false;
+      let scrollEndDebounceTimer = null;
+
+      function logEvent(message) {
+        const time = new Date().toTimeString().split(' ')[0];
+        const item = document.createElement('div');
+        item.textContent = `[${time}] ${message}`;
+        logMini.insertBefore(item, logMini.firstChild);
+        while (logMini.children.length > 8) {
+          logMini.removeChild(logMini.lastChild);
+        }
+      }
+
+      function getSpacerHeight() {
+        return window.innerHeight;
+      }
+
+      let maxDisplacementThisGesture = 0;
+
+      // Update telemetry and UI indicators from native scroller offset
+      function updateFromScrollOffset() {
+        if (!isOpen) return;
+
+        const currentScrollTop = overlayScroller.scrollTop;
+        const spacerHeight = getSpacerHeight();
+        const thresholdPx = Math.round(spacerHeight * THRESHOLD_RATIO);
+
+        statScrolltop.textContent = `${Math.round(currentScrollTop)}px`;
+        statThreshold.textContent = `${thresholdPx}px (30%)`;
+
+        if (currentScrollTop < spacerHeight) {
+          // User is scrolling into the transparent spacer above the header!
+          fullscreenOverlay.classList.add('is-scrolling-spacer');
+          const displacement = spacerHeight - currentScrollTop;
+          maxDisplacementThisGesture = Math.max(maxDisplacementThisGesture, displacement);
+          const displacementPct = Math.min(100, Math.max(0, (displacement / spacerHeight) * 100));
+          const progressToThreshold = Math.min(100, Math.max(0, (displacement / thresholdPx) * 100));
+
+          statDisplacement.textContent = `${Math.round(displacement)}px (${displacementPct.toFixed(1)}%)`;
+          statRegion.textContent = 'SPACER (COLLAPSING)';
+          statRegion.className = 'telemetry-value active';
+
+          // Progress UI
+          progressBarFill.style.width = `${progressToThreshold}%`;
+          pullPercentageText.textContent = `${displacementPct.toFixed(1)}% displaced (Need 30%)`;
+
+          if (displacement >= thresholdPx) {
+            thresholdMarker.classList.add('reached');
+            pullProgressPill.classList.add('reached');
+            pullPercentageText.textContent = `${displacementPct.toFixed(1)}% displaced - 30% Threshold Reached!`;
+          } else {
+            thresholdMarker.classList.remove('reached');
+            pullProgressPill.classList.remove('reached');
+          }
+
+          // Dynamically fade backdrop with scroll displacement
+          const fadeRatio = Math.max(0, currentScrollTop / (spacerHeight * 0.7));
+          overlayBackdrop.style.opacity = Math.min(1, fadeRatio);
+
+        } else {
+          // User is in the article content area (scrollTop >= spacerHeight)
+          fullscreenOverlay.classList.remove('is-scrolling-spacer');
+          statDisplacement.textContent = '0px (0%)';
+          statRegion.textContent = 'CONTENT';
+          statRegion.className = 'telemetry-value success';
+          overlayBackdrop.style.opacity = '1';
+        }
+      }
+
+      // Open Fullscreen Overlay
+      function openOverlay() {
+        if (isOpen) return;
+        isOpen = true;
+        maxDisplacementThisGesture = 0;
+
+        document.body.classList.add('overlay-open');
+        fullscreenOverlay.classList.add('is-active');
+        openOverlayBtn.setAttribute('aria-expanded', 'true');
+
+        const spacerHeight = getSpacerHeight();
+        // Instant jump to scrollTop = 100vh (snapped open at the overlay sheet)
+        overlayScroller.scrollTop = spacerHeight;
+
+        overlayBackdrop.style.opacity = '1';
+        fullscreenOverlay.classList.remove('is-scrolling-spacer');
+
+        statState.textContent = 'OPEN';
+        statState.className = 'telemetry-value success';
+        updateFromScrollOffset();
+        logEvent('Overlay opened at snapped position (100vh)');
+      }
+
+      // Close Fullscreen Overlay
+      function closeOverlay() {
+        if (!isOpen) return;
+        isOpen = false;
+        maxDisplacementThisGesture = 0;
+
+        statState.textContent = 'CLOSING';
+        statState.className = 'telemetry-value active';
+        logEvent('Closing overlay');
+
+        overlayBackdrop.style.opacity = '0';
+        fullscreenOverlay.classList.remove('is-active');
+        document.body.classList.remove('overlay-open');
+        openOverlayBtn.setAttribute('aria-expanded', 'false');
+
+        thresholdMarker.classList.remove('reached');
+        pullProgressPill.classList.remove('reached');
+        fullscreenOverlay.classList.remove('is-scrolling-spacer');
+
+        statState.textContent = 'CLOSED';
+        statState.className = 'telemetry-value';
+        statRegion.textContent = 'CLOSED';
+        statRegion.className = 'telemetry-value';
+        statDisplacement.textContent = '0px (0%)';
+        logEvent('Overlay closed completely');
+      }
+
+      let isSnappingBack = false;
+      let isInteracting = false;
+      let interactionDebounceTimer = null;
+
+      function onUserGestureActive() {
+        isInteracting = true;
+        isSnappingBack = false;
+        clearTimeout(interactionDebounceTimer);
+      }
+
+      function onUserGestureReleased(delay = 60) {
+        clearTimeout(interactionDebounceTimer);
+        interactionDebounceTimer = setTimeout(() => {
+          isInteracting = false;
+          handleScrollEnd();
+        }, delay);
+      }
+
+      // ScrollEnd Handler: Evaluates whether displacement >= 30% threshold ONLY when gesture truly completes
+      function handleScrollEnd() {
+        if (!isOpen) return;
+
+        // If the user is still actively interacting (holding touch or wheeling), do NOT interrupt!
+        if (isInteracting) return;
+
+        // If this scrollend was produced by our own smooth snap-back completing, reset and ignore
+        if (isSnappingBack) {
+          isSnappingBack = false;
+          return;
+        }
+
+        const currentScrollTop = overlayScroller.scrollTop;
+        const spacerHeight = getSpacerHeight();
+        const displacement = spacerHeight - currentScrollTop;
+        const thresholdPx = spacerHeight * THRESHOLD_RATIO;
+
+        // Only process if intentionally displaced (> 4px to avoid subpixel jitter)
+        if (displacement > 4) {
+          if (displacement >= thresholdPx) {
+            logEvent(`Gesture completed: Released at ${Math.round(displacement)}px (>= 30%). Dismissing overlay!`);
+            closeOverlay();
+          } else {
+            logEvent(`Gesture completed: Released at ${Math.round(displacement)}px (< 30%). Snapping back to open position.`);
+            isSnappingBack = true;
+            overlayScroller.scrollTo({ top: spacerHeight, behavior: 'smooth' });
+          }
+        }
+      }
+
+      // Native Compositor Scroll: Update telemetry and indicators continuously
+      overlayScroller.addEventListener('scroll', () => {
+        updateFromScrollOffset();
+      }, { passive: true });
+
+      // Native scrollend event: only evaluates if user is NOT currently interacting
+      overlayScroller.addEventListener('scrollend', () => {
+        if (!isInteracting) {
+          handleScrollEnd();
+        }
+      });
+
+      // Track active user gesture lifecycle so reversing direction never snaps prematurely
+      overlayScroller.addEventListener('wheel', () => {
+        onUserGestureActive();
+        onUserGestureReleased(200); // 200ms after last wheel tick, gesture is considered complete
+      }, { passive: true });
+
+      overlayScroller.addEventListener('touchstart', () => {
+        onUserGestureActive();
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => {
+        onUserGestureReleased(40);
+      }, { passive: true });
+
+      window.addEventListener('touchcancel', () => {
+        onUserGestureReleased(40);
+      }, { passive: true });
+
+      overlayScroller.addEventListener('mousedown', () => {
+        onUserGestureActive();
+      }, { passive: true });
+
+      window.addEventListener('mouseup', () => {
+        onUserGestureReleased(40);
+      }, { passive: true });
+
+      // Tapping/clicking the transparent spacer dismisses overlay (backdrop tap)
+      transparentSpacer.addEventListener('click', () => {
+        logEvent('Transparent spacer clicked -> dismiss');
+        closeOverlay();
+      });
+
+      // Action Listeners
+      openOverlayBtn.addEventListener('click', openOverlay);
+      closeOverlayBtn.addEventListener('click', closeOverlay);
+
+      btnScrollTop.addEventListener('click', () => {
+        const spacerHeight = getSpacerHeight();
+        overlayScroller.scrollTo({ top: spacerHeight, behavior: 'smooth' });
+        logEvent('Scrolled back to top of sheet');
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isOpen) {
+          e.preventDefault();
+          closeOverlay();
+          logEvent('Dismissed via Escape key');
+        }
+        if ((e.key === 'o' || e.key === 'O') && !isOpen) {
+          if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            openOverlay();
+            logEvent('Opened via "O" shortcut');
+          }
+        }
+      });
+
+      dockHeader.addEventListener('click', () => {
+        diagnosticsDock.classList.toggle('is-collapsed');
+        dockToggleBtn.textContent = diagnosticsDock.classList.contains('is-collapsed') ? '▲' : '▼';
+      });
+
+      window.addEventListener('resize', () => {
+        if (isOpen) {
+          updateFromScrollOffset();
+        }
+      });
+
+      statState.textContent = 'CLOSED';
+      statRegion.textContent = 'CLOSED';
+      logEvent('System initialized. Compositor scroll engine active.');
+    });
+  </script>
+</body>
+</html>
