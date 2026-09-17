@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Compositor Scroll Overlay (CSS Functions MVP)</title>
+
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --threshold-ratio: 0.30;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --bg-backdrop: rgba(15, 23, 42, 0.6);
+      --bg-sheet: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --border-color: #e2e8f0;
+      --accent: #2563eb;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: #f8fafc;
+      color: var(--text-primary);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    /* Landing Page View */
+    .hero-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2.5rem;
+      max-width: 540px;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .hero-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      margin-bottom: 1.75rem;
+      line-height: 1.6;
+    }
+
+    .btn-primary {
+      appearance: none;
+      border: none;
+      background: var(--accent);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 0.85rem 1.75rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================================================
+       FULLSCREEN OVERLAY DIALOG (CSS FUNCTIONS ARCHITECTURE)
+       Zero empty spacer divs in DOM!
+       ========================================================================== */
+
+    /* Scope scroll timeline to container */
+    .fullscreen-overlay {
+      timeline-scope: --overlay-scroll;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1000;
+      display: none;
+      pointer-events: none;
+    }
+
+    .fullscreen-overlay.is-active {
+      display: block;
+      pointer-events: auto;
+    }
+
+    /* 1. Backdrop opacity animated via CSS scroll() function directly on GPU */
+    .overlay-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: var(--bg-backdrop);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      animation: backdrop-fade linear;
+      animation-timeline: --overlay-scroll;
+      animation-range: 0px calc(100vh);
+    }
+
+    @keyframes backdrop-fade {
+      0%   { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    /* 2. Compositor Scroller with named scroll timeline */
+    .overlay-scroller {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
+      scroll-behavior: auto;
+      cursor: pointer; /* Clicking in the margin area acts as backdrop dismiss */
+
+      scroll-timeline-name: --overlay-scroll;
+      scroll-timeline-axis: block;
+    }
+
+    /* 3. Overlay Sheet: margin-top: calc(100vh) creates the 100vh space without a dummy DIV */
+    .overlay-sheet {
+      width: 100%;
+      min-height: 100vh;
+      background: var(--bg-sheet);
+      box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.18);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      cursor: default;
+
+      /* CSS Function replaces the 100vh empty spacer div! */
+      margin-top: calc(100vh);
+    }
+
+    /* 4. Sticky Header: Pins cleanly to viewport top */
+    .overlay-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg-sheet);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    .drag-handle-container {
+      width: 100%;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+    }
+
+    .drag-handle {
+      width: 40px;
+      height: 4px;
+      border-radius: 9999px;
+      background-color: #cbd5e1;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem 0.85rem;
+    }
+
+    .header-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .btn-close {
+      appearance: none;
+      border: 1px solid var(--border-color);
+      background: #f1f5f9;
+      color: var(--text-secondary);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    .btn-close:hover {
+      background: var(--border-color);
+      color: var(--text-primary);
+      transform: scale(1.05);
+    }
+
+    /* 5. Scrollable Content */
+    .overlay-content {
+      flex: 1;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .overlay-content h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-top: 0.5rem;
+    }
+
+    .overlay-content p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      line-height: 1.75;
+    }
+
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 1.25rem;
+      color: #1e3a8a;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Landing Page -->
+  <main class="hero-card">
+    <h1 class="hero-title">Compositor Scroll Overlay</h1>
+    <p class="hero-description">
+      Powered by CSS functions (<code style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">margin-top: calc(100vh)</code> and <code style="background:#e2e8f0; padding:2px 6px; border-radius:4px;">animation-timeline: scroll()</code>). No empty spacer divs in the DOM.
+    </p>
+    <button id="open-overlay-btn" class="btn-primary">
+      <span>Open Fullscreen Overlay</span>
+    </button>
+  </main>
+
+  <!-- Fullscreen Overlay Dialog -->
+  <div id="fullscreen-overlay" class="fullscreen-overlay" role="dialog" aria-modal="true">
+    <!-- GPU-animated backdrop via CSS scroll() timeline -->
+    <div id="overlay-backdrop" class="overlay-backdrop"></div>
+
+    <!-- Compositor Scroller (Zero spacer divs inside) -->
+    <div id="overlay-scroller" class="overlay-scroller">
+      <div id="overlay-sheet" class="overlay-sheet">
+        <!-- Sticky Header -->
+        <header class="overlay-header">
+          <div class="drag-handle-container">
+            <div class="drag-handle"></div>
+          </div>
+          <div class="header-row">
+            <h2 class="header-title">Compositor Scroll Sheet</h2>
+            <button id="close-overlay-btn" class="btn-close" aria-label="Close overlay">✕</button>
+          </div>
+        </header>
+
+        <!-- Scrollable Sheet Content -->
+        <article class="overlay-content">
+          <div class="info-box">
+            <strong>How it works:</strong> The sheet uses <code style="font-weight:700;">margin-top: calc(100vh)</code> to create the scroll runway. When you scroll or pull down at the top, the browser compositor translates the sheet downward. If released after moving &ge; 30%, it dismisses; if &lt; 30%, it smoothly springs back.
+          </div>
+
+          <h2>1. Native Compositor Gestures</h2>
+          <p>
+            The entire scroll interaction runs directly on Chromium's compositor thread. There is no JavaScript drag physics or touch coordinate computation, ensuring smooth 120Hz performance.
+          </p>
+
+          <h2>2. Fluid Bidirectional Scrubbing</h2>
+          <p>
+            You can drag or scroll down into the transparent space, pause, push it back up, or scrub freely in either direction. The sheet tracks your input 1:1 without premature snapping.
+          </p>
+
+          <h2>3. Scrollable Article Body</h2>
+          <p>
+            When reading content, the header sticks cleanly to the top of the viewport. Scrolling down navigates through the article content naturally.
+          </p>
+
+          <p>
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+          </p>
+
+          <p>
+            Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida.
+          </p>
+
+          <p>
+            Fusce convallis metus id felis luctus adipiscing. Aenean massa. Vivamus aliquet elit ac nisl. Fusce vulputate eleifend sapien. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
+          </p>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minimal Critical JavaScript -->
+  <script>
+    (function () {
+      'use strict';
+
+      const openBtn = document.getElementById('open-overlay-btn');
+      const closeBtn = document.getElementById('close-overlay-btn');
+      const overlay = document.getElementById('fullscreen-overlay');
+      const scroller = document.getElementById('overlay-scroller');
+
+      const THRESHOLD = 0.30;
+      let isOpen = false;
+      let isInteracting = false;
+      let isSnappingBack = false;
+      let interactionTimer = null;
+
+      function openOverlay() {
+        if (isOpen) return;
+        isOpen = true;
+        overlay.classList.add('is-active');
+        document.body.style.overflow = 'hidden';
+
+        // Position scroller to 100vh so sheet is flush at top of viewport
+        scroller.scrollTop = window.innerHeight;
+        closeBtn.focus({ preventScroll: true });
+      }
+
+      function closeOverlay() {
+        if (!isOpen) return;
+        isOpen = false;
+        isInteracting = false;
+        isSnappingBack = false;
+        clearTimeout(interactionTimer);
+
+        overlay.classList.remove('is-active');
+        document.body.style.overflow = '';
+        openBtn.focus({ preventScroll: true });
+      }
+
+      function onGestureStart() {
+        isInteracting = true;
+        isSnappingBack = false;
+        clearTimeout(interactionTimer);
+      }
+
+      function onGestureEnd(delay = 50) {
+        clearTimeout(interactionTimer);
+        interactionTimer = setTimeout(() => {
+          isInteracting = false;
+          handleScrollEnd();
+        }, delay);
+      }
+
+      // Evaluates whether displacement >= 30% threshold upon gesture completion
+      function handleScrollEnd() {
+        if (!isOpen || isInteracting) return;
+        if (isSnappingBack) {
+          isSnappingBack = false;
+          return;
+        }
+
+        const vh = window.innerHeight;
+        const displacement = vh - scroller.scrollTop;
+
+        if (displacement > 4) {
+          if (displacement >= vh * THRESHOLD) {
+            closeOverlay();
+          } else {
+            isSnappingBack = true;
+            scroller.scrollTo({ top: vh, behavior: 'smooth' });
+          }
+        }
+      }
+
+      // Native scrollend event
+      scroller.addEventListener('scrollend', () => {
+        if (!isInteracting) handleScrollEnd();
+      });
+
+      // Track active user gesture lifecycle to allow smooth bidirectional scrubbing
+      scroller.addEventListener('wheel', () => {
+        onGestureStart();
+        onGestureEnd(200);
+      }, { passive: true });
+
+      scroller.addEventListener('touchstart', onGestureStart, { passive: true });
+      window.addEventListener('touchend', () => onGestureEnd(40), { passive: true });
+      window.addEventListener('touchcancel', () => onGestureEnd(40), { passive: true });
+      scroller.addEventListener('mousedown', onGestureStart, { passive: true });
+      window.addEventListener('mouseup', () => onGestureEnd(40), { passive: true });
+
+      // Clicking in the transparent margin space above the sheet dismisses overlay
+      scroller.addEventListener('click', (e) => {
+        if (e.target === scroller) closeOverlay();
+      });
+
+      openBtn.addEventListener('click', openOverlay);
+      closeBtn.addEventListener('click', closeOverlay);
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.key === 'o' || e.key === 'O') && !isOpen) openOverlay();
+        else if (e.key === 'Escape' && isOpen) closeOverlay();
+      });
+    })();
+  </script>
+</body>
+</html>

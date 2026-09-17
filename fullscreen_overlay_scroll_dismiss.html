@@ -1406,6 +1406,8 @@
 
       // Close Fullscreen Overlay
       function closeOverlay() {
+        console.log("closeOverlay called");
+return;
         if (!isOpen) return;
         isOpen = false;
         maxDisplacementThisGesture = 0;
@@ -1481,9 +1483,9 @@
       }
 
       // Native Compositor Scroll: Update telemetry and indicators continuously
-      overlayScroller.addEventListener('scroll', () => {
-        updateFromScrollOffset();
-      }, { passive: true });
+      //overlayScroller.addEventListener('scroll', () => {
+        //updateFromScrollOffset();
+      //}, { passive: true });
 
       // Native scrollend event: only evaluates if user is NOT currently interacting
       overlayScroller.addEventListener('scrollend', () => {
@@ -1493,10 +1495,10 @@
       });
 
       // Track active user gesture lifecycle so reversing direction never snaps prematurely
-      overlayScroller.addEventListener('wheel', () => {
-        onUserGestureActive();
-        onUserGestureReleased(200); // 200ms after last wheel tick, gesture is considered complete
-      }, { passive: true });
+      //overlayScroller.addEventListener('wheel', () => {
+        //onUserGestureActive();
+        //onUserGestureReleased(200); // 200ms after last wheel tick, gesture is considered complete
+      //}, { passive: true });
 
       overlayScroller.addEventListener('touchstart', () => {
         onUserGestureActive();
@@ -1555,6 +1557,7 @@
       });
 
       window.addEventListener('resize', () => {
+        console.log("resize called");
         if (isOpen) {
           updateFromScrollOffset();
         }

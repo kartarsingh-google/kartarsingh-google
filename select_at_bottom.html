@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Element at Bottom of Page</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    body {
+      min-height: 150vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    body.viewport-height {
+      min-height: 100vh;
+    }
+    .header-card {
+      max-width: 720px;
+      margin: 24px auto;
+      padding: 20px 24px;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0 0 8px 0;
+    }
+    p {
+      margin: 0 0 16px 0;
+      color: #495057;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    button {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      background-color: #ffffff;
+      color: #212529;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    button:hover {
+      background-color: #e9ecef;
+    }
+    .status-box {
+      padding: 10px 12px;
+      background-color: #f1f3f5;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: monospace;
+    }
+    .spacer-info {
+      text-align: center;
+      color: #adb5bd;
+      font-size: 14px;
+      margin: auto 0;
+      padding: 40px 16px;
+      user-select: none;
+    }
+    .bottom-bar {
+      width: 100%;
+      background-color: #ffffff;
+      border-top: 1px solid #dee2e6;
+      padding: 16px 24px;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    }
+    .bottom-bar.fixed-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+    }
+    .select-grid {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      align-items: end;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #343a40;
+    }
+    select,
+    input[type="datetime-local"],
+    input[type="date"],
+    input[type="time"] {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      background-color: #fff;
+      color: #212529;
+      font-family: inherit;
+    }
+    select[multiple] {
+      height: 110px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-card">
+    <h1>Select Element &amp; Date-Time Chooser at Bottom of Page</h1>
+    <p>
+      Scroll to the bottom of the page (or use the layout controls below) to interact with the
+      <code>&lt;select&gt;</code> and <code>&lt;input type="datetime-local"&gt;</code> elements positioned at the bottom.
+    </p>
+    <div class="controls">
+      <button id="toggle-height-btn" type="button">Page Height: Scrollable (150vh)</button>
+      <button id="toggle-fixed-btn" type="button">Position: Static Bottom</button>
+    </div>
+    <div class="status-box" id="selection-status">
+      Selected values: None
+    </div>
+  </div>
+
+  <div class="spacer-info" id="spacer-info">
+    ↓ Scroll down to reach the bottom &lt;select&gt; and date-time elements ↓
+  </div>
+
+  <footer class="bottom-bar" id="bottom-bar">
+    <div class="select-grid">
+      <div class="field-group">
+        <label for="bottom-select-single">Dropdown &lt;select&gt; (Multiple Options):</label>
+        <select id="bottom-select-single" name="bottom-select-single">
+          <option value="" disabled selected>Choose an option...</option>
+          <option value="option-1">Option 1 — Alpha</option>
+          <option value="option-2">Option 2 — Beta</option>
+          <option value="option-3">Option 3 — Gamma</option>
+          <option value="option-4">Option 4 — Delta</option>
+          <option value="option-5">Option 5 — Epsilon</option>
+          <option value="option-6">Option 6 — Zeta</option>
+          <option value="option-7">Option 7 — Eta</option>
+          <option value="option-8">Option 8 — Theta</option>
+          <option value="option-9">Option 9 — Iota</option>
+          <option value="option-10">Option 10 — Kappa</option>
+          <option value="option-11">Option 11 — Lambda</option>
+          <option value="option-12">Option 12 — Mu</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label for="bottom-datetime">Date &amp; Time Chooser (<code>datetime-local</code>):</label>
+        <input type="datetime-local" id="bottom-datetime" name="bottom-datetime">
+      </div>
+
+      <div class="field-group">
+        <label for="bottom-select-multiple">Multi-select &lt;select multiple&gt;:</label>
+        <select id="bottom-select-multiple" name="bottom-select-multiple" multiple>
+          <option value="apple">Apple</option>
+          <option value="banana">Banana</option>
+          <option value="cherry">Cherry</option>
+          <option value="date">Date</option>
+          <option value="elderberry">Elderberry</option>
+          <option value="fig">Fig</option>
+          <option value="grape">Grape</option>
+          <option value="honeydew">Honeydew</option>
+        </select>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const singleSelect = document.getElementById('bottom-select-single');
+    const multiSelect = document.getElementById('bottom-select-multiple');
+    const dateTimeInput = document.getElementById('bottom-datetime');
+    const statusBox = document.getElementById('selection-status');
+    const toggleHeightBtn = document.getElementById('toggle-height-btn');
+    const toggleFixedBtn = document.getElementById('toggle-fixed-btn');
+    const bottomBar = document.getElementById('bottom-bar');
+    const spacerInfo = document.getElementById('spacer-info');
+
+    function updateSelectionStatus() {
+      const singleVal = singleSelect.value || 'None';
+      const dateTimeVal = dateTimeInput.value || 'None';
+      const multiVals = Array.from(multiSelect.selectedOptions).map(o => o.value);
+      statusBox.textContent =
+        `Single: ${singleVal} | Date-Time: ${dateTimeVal} | Multiple: ${multiVals.length ? multiVals.join(', ') : 'None'}`;
+    }
+
+    singleSelect.addEventListener('change', updateSelectionStatus);
+    multiSelect.addEventListener('change', updateSelectionStatus);
+    dateTimeInput.addEventListener('change', updateSelectionStatus);
+    dateTimeInput.addEventListener('input', updateSelectionStatus);
+
+    let isViewportHeight = false;
+    toggleHeightBtn.addEventListener('click', () => {
+      isViewportHeight = !isViewportHeight;
+      document.body.classList.toggle('viewport-height', isViewportHeight);
+      toggleHeightBtn.textContent = isViewportHeight
+        ? 'Page Height: Fit Viewport (100vh)'
+        : 'Page Height: Scrollable (150vh)';
+      spacerInfo.textContent = isViewportHeight
+        ? 'Page fits viewport (100vh)'
+        : '↓ Scroll down to reach the bottom <select> and date-time elements ↓';
+    });
+
+    let isFixedBottom = false;
+    toggleFixedBtn.addEventListener('click', () => {
+      isFixedBottom = !isFixedBottom;
+      bottomBar.classList.toggle('fixed-bottom', isFixedBottom);
+      toggleFixedBtn.textContent = isFixedBottom
+        ? 'Position: Fixed Bottom'
+        : 'Position: Static Bottom';
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Pull-to-refresh implementation utilizing modern CSS functions (view, scroll, calc), CSS Scroll Snap, and scrollend without any touchmove event listeners.">
+  <title>Pull to Refresh via CSS Functions (Zero touchmove)</title>
+
+  <!-- Google Font: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔄</text></svg>">
+
+  <style>
+    /* ==========================================================================
+       CSS FUNCTIONS & CUSTOM PROPERTIES DESIGN SYSTEM
+       Demonstrating: view(), scroll(), calc(), clamp(), color-mix()
+       ========================================================================== */
+    :root {
+      --ptr-height: 80px;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-subtle: #f1f5f9;
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+
+      --accent: #2563eb;
+      --accent-subtle: color-mix(in srgb, var(--accent) 10%, white);
+      --accent-border: color-mix(in srgb, var(--accent) 30%, transparent);
+
+      --success: #059669;
+      --success-subtle: color-mix(in srgb, var(--success) 12%, white);
+
+      --border-color: #e2e8f0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Scrollport Configuration with CSS Scroll Snap */
+    html {
+      height: 100%;
+      overscroll-behavior-y: contain;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+      background-color: var(--bg-main);
+      /* Hide native scrollbar to eliminate the 80px pre-scrolled thumb offset */
+      scrollbar-width: none;
+    }
+
+    html::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* CSS Scroll-Driven Custom Scrollbar: Starts at 0% when scrollY = var(--ptr-height) */
+    .custom-scrollbar-track {
+      position: fixed;
+      top: 4px;
+      right: 4px;
+      bottom: 4px;
+      width: 6px;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .custom-scrollbar-thumb {
+      width: 100%;
+      height: 52px;
+      border-radius: 9999px;
+      background: rgba(100, 116, 139, 0.5);
+
+      /* Timeline range starts at var(--ptr-height), so thumb is flush at top when resting! */
+      animation: scrollbar-travel linear;
+      animation-timeline: scroll(root);
+      animation-range: var(--ptr-height) 100%;
+    }
+
+    @keyframes scrollbar-travel {
+      0% {
+        transform: translateY(0);
+      }
+      100% {
+        transform: translateY(calc(100vh - 8px - 52px));
+      }
+    }
+
+    body {
+      min-height: 100%;
+      font-family: var(--font-sans);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ==========================================================================
+       PULL TO REFRESH RUNWAY & FLOATING PILL
+       Runway: Transparent spacer for scroll-snap stop point.
+       Pill: Fixed floating card at z-index: 100 so it is NEVER hidden behind layers!
+       ZERO JavaScript touchmove or drag calculation.
+       ========================================================================== */
+    #ptr-header {
+      height: var(--ptr-height);
+      position: relative;
+      background: transparent;
+    }
+
+    /* Delayed snap point: Allows initial render to snap to main content */
+    #ptr-header::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      height: 10px;
+      animation: delayed-snap 10ms forwards;
+    }
+
+    @keyframes delayed-snap {
+      to { scroll-snap-align: start; }
+    }
+
+    /* Floating PTR Pill: ALWAYS on top of all layers (z-index: 100) */
+    .ptr-pill {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100%);
+      z-index: 100;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
+      padding: 0.55rem 1.25rem;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      pointer-events: none;
+      user-select: none;
+
+      /* CSS Scroll-Driven Float: descends smoothly in front of all content */
+      animation: ptr-pill-float linear;
+      animation-timeline: scroll(root);
+      animation-range: 0px var(--ptr-height);
+    }
+
+    @keyframes ptr-pill-float {
+      0% {
+        transform: translateX(-50%) translateY(16px);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(-50%) translateY(-100%);
+        opacity: 0;
+      }
+    }
+
+    /* Spinner ring driven directly by CSS scroll timeline */
+    .ptr-spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #cbd5e1;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+
+      animation: ptr-spinner-spin linear;
+      animation-timeline: scroll(root);
+      animation-range: 0px var(--ptr-height);
+    }
+
+    @keyframes ptr-spinner-spin {
+      0% {
+        transform: rotate(360deg) scale(1);
+      }
+      100% {
+        transform: rotate(0deg) scale(0.65);
+      }
+    }
+
+    .ptr-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    /* Active Loading State */
+    .ptr-pill.is-loading .ptr-spinner {
+      animation: ptr-infinite-spin 0.75s linear infinite !important;
+      border-top-color: var(--accent);
+    }
+
+    @keyframes ptr-infinite-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ==========================================================================
+       MAIN CONTENT CONTAINER
+       Snaps to top on load and returns cleanly after refresh.
+       Applies CSS Scroll-Driven resistance (damping factor 0.45x).
+       ========================================================================== */
+    #main-content {
+      min-height: calc(100vh - var(--ptr-height));
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      background: var(--bg-main);
+      display: flex;
+      flex-direction: column;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 5rem;
+      gap: 1.5rem;
+
+      /* CSS Scroll-Driven Resistance:
+         As scrollY goes from 80px to 0px, this counter-translates upward
+         by 44px, creating an authentic 0.45x damping (rubber-band) resistance!
+      */
+      animation: ptr-content-resistance linear;
+      animation-timeline: scroll(root);
+      animation-range: 0px var(--ptr-height);
+    }
+
+    @keyframes ptr-content-resistance {
+      0% {
+        /* When scrollY = 0 (pulled by 80px), visual displacement is 36px */
+        transform: translateY(-44px);
+      }
+      100% {
+        /* Resting state (scrollY = 80px) */
+        transform: translateY(0px);
+      }
+    }
+
+    /* Top App Bar */
+    .app-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .header-badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .badge-ptr {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border: 1px solid var(--accent-border);
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+    }
+
+    .badge-status {
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .app-title {
+      font-size: clamp(1.4rem, 3.5vw, 1.85rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .app-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Technical Explainer Card */
+    .tech-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .tech-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tech-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .tech-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .code-pill {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      color: #0284c7;
+    }
+
+    /* Live Feed */
+    .feed-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 0.25rem;
+    }
+
+    .feed-title {
+      font-size: 1rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .feed-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .feed-card.is-new {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      animation: highlight-pulse 2s ease-out;
+    }
+
+    @keyframes highlight-pulse {
+      0% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    .feed-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .feed-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      background: var(--accent-subtle);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .feed-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .feed-text {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. PULL TO REFRESH RUNWAY (Transparent track for scroll-snap & headroom) -->
+  <header id="ptr-header"></header>
+
+  <!-- 2. FLOATING PTR PILL (Always on top of all layers via z-index: 100) -->
+  <div id="ptr-pill" class="ptr-pill" aria-live="polite">
+    <div class="ptr-spinner"></div>
+    <span id="ptr-label" class="ptr-label">Pull down to refresh</span>
+  </div>
+
+  <!-- 2. MAIN SCROLLABLE CONTENT -->
+  <main id="main-content">
+    <!-- Top App Card -->
+    <section class="app-header">
+      <div class="header-badge-row">
+        <span class="badge-ptr">CSS Functions • Zero JS Listeners</span>
+        <span id="status-badge" class="badge-status">Ready</span>
+      </div>
+      <h1 class="app-title">Pull to Refresh with CSS</h1>
+      <p class="app-subtitle">
+        Pull down at the top to refresh. The gesture is processed 100% natively by the browser compositor with zero <code class="code-pill">touchmove</code> or <code class="code-pill">mousemove</code> listeners.
+      </p>
+    </section>
+
+    <!-- Technical Mechanism Card -->
+    <section class="tech-card">
+      <h3>⚡ How It Works via CSS Functions</h3>
+      <ul class="tech-list">
+        <li>
+          <span>•</span>
+          <span><strong>CSS Scroll Snap:</strong> <code class="code-pill">scroll-snap-type: y mandatory</code> handles resting boundaries between the PTR header and content.</span>
+        </li>
+        <li>
+          <span>•</span>
+          <span><strong>CSS view() Function:</strong> <code class="code-pill">animation-timeline: view()</code> rotates and scales the spinner directly on the GPU as the header enters the viewport.</span>
+        </li>
+        <li>
+          <span>•</span>
+          <span><strong>Zero Touchmove Listeners:</strong> Gesture tracking, rubber-banding, and physics are handled entirely off-main-thread by Chromium’s compositor.</span>
+        </li>
+        <li>
+          <span>•</span>
+          <span><strong>Native scrollend Event:</strong> JavaScript only triggers the data refresh when the user finishes pulling and the viewport rests at the top snap point.</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Feed Section -->
+    <section class="feed-container">
+      <div class="feed-header">
+        <span class="feed-title">Activity Feed</span>
+        <span id="item-counter" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">3 items</span>
+      </div>
+
+      <div id="feed-list" class="feed-container">
+        <article class="feed-card">
+          <div class="feed-card-header">
+            <span class="feed-tag">Blink Engine</span>
+            <span class="feed-time">10:00 AM</span>
+          </div>
+          <p class="feed-text">
+            Scroll-driven animations run off-thread without requiring main thread JavaScript execution.
+          </p>
+        </article>
+
+        <article class="feed-card">
+          <div class="feed-card-header">
+            <span class="feed-tag">Compositor</span>
+            <span class="feed-time">09:42 AM</span>
+          </div>
+          <p class="feed-text">
+            Overscroll behavior contain prevents browser-level pull-to-refresh while custom CSS handles pull gestures.
+          </p>
+        </article>
+
+        <article class="feed-card">
+          <div class="feed-card-header">
+            <span class="feed-tag">Scroll Snap</span>
+            <span class="feed-time">09:15 AM</span>
+          </div>
+          <p class="feed-text">
+            CSS Scroll Snap automatically springs the document back to the main content when pull is cancelled.
+          </p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- CSS Scroll-Driven Custom Scrollbar (starts at 0% when scrollY = 80px) -->
+  <div class="custom-scrollbar-track" aria-hidden="true">
+    <div id="custom-scrollbar-thumb" class="custom-scrollbar-thumb"></div>
+  </div>
+
+  <!-- ==========================================================================
+       MINIMAL JAVASCRIPT
+       ZERO touchmove listeners! ZERO drag math!
+       Only listens to native `scrollend` to trigger async data fetch.
+       ========================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      const mainContent = document.getElementById('main-content');
+      const ptrHeader = document.getElementById('ptr-header');
+      const ptrPill = document.getElementById('ptr-pill');
+      const ptrLabel = document.getElementById('ptr-label');
+      const statusBadge = document.getElementById('status-badge');
+      const feedList = document.getElementById('feed-list');
+      const itemCounter = document.getElementById('item-counter');
+
+      let isRefreshing = false;
+      let refreshCounter = 0;
+
+      // Start page snapped cleanly to the main content (skipping the 80px PTR header)
+      window.scrollTo({ top: ptrHeader.offsetHeight });
+
+      // Native scrollend event: Trigger refresh only if snapped at the top (scrollTop <= 5px)
+      window.addEventListener('scrollend', () => {
+        if (isRefreshing) return;
+
+        const scrollTop = document.documentElement.scrollTop || window.scrollY;
+
+        // If resting at the PTR header (scrollTop <= 5px), user pulled down and released
+        if (scrollTop <= 5) {
+          isRefreshing = true;
+          ptrPill.classList.add('is-loading');
+          ptrLabel.textContent = 'Refreshing content...';
+          statusBadge.textContent = 'Refreshing...';
+          statusBadge.style.color = '#2563eb';
+
+          // Simulate async network request (1.2s)
+          setTimeout(() => {
+            refreshCounter++;
+            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            const newCard = document.createElement('article');
+            newCard.className = 'feed-card is-new';
+            newCard.innerHTML = `
+              <div class="feed-card-header">
+                <span class="feed-tag" style="background:#dcfce7; color:#15803d;">Updated #${refreshCounter}</span>
+                <span class="feed-time">${now}</span>
+              </div>
+              <p class="feed-text">
+                Fresh feed payload loaded asynchronously. Restored scroll offset via native smooth scroll.
+              </p>
+            `;
+            feedList.prepend(newCard);
+            itemCounter.textContent = `${feedList.children.length} items`;
+
+            ptrLabel.textContent = 'Updated!';
+            statusBadge.textContent = 'Updated';
+            statusBadge.style.color = '#059669';
+
+            // Wait 400ms so user sees success feedback, then smoothly return to main content
+            setTimeout(() => {
+              window.scrollTo({ top: ptrHeader.offsetHeight, behavior: 'smooth' });
+
+              window.addEventListener('scrollend', () => {
+                ptrPill.classList.remove('is-loading');
+                ptrLabel.textContent = 'Pull down to refresh';
+                statusBadge.textContent = 'Ready';
+                statusBadge.style.color = '';
+                isRefreshing = false;
+              }, { once: true });
+            }, 400);
+          }, 1200);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
