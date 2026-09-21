@@ -8,12 +8,8 @@
     body {
       font-family: system-ui, -apple-system, sans-serif;
       margin: 20px;
-      background: #e2e8f0;
-      color: #0f172a;
-    }
-    body.test-mode {
-      margin: 0;
-      padding: 0;
+      background: #fafafa;
+      color: #222;
     }
     .hud {
       position: sticky;
@@ -36,43 +32,53 @@
       flex: 1;
       min-width: 300px;
     }
+    /*
+     * 1. Main-Thread-Painted Scroller (kScrollingOnMain):
+     *    - `background-attachment: fixed` sets
+     *      MainThreadRepaintReason::kBackgroundNeedsRepaintOnScroll /
+     *      kHasBackgroundAttachmentFixedObjects in Blink even when
+     *      PreferCompositingToLCDText or RasterInducingScroll is enabled.
+     *    - Also transparent background without `will-change: transform` triggers
+     *      kNotOpaqueForTextAndLCDText when --disable-prefer-compositing-to-lcd-text is passed.
+     */
     #scroller {
-      width: 300px;
-      height: 300px;
+      width: 320px;
+      height: 320px;
       overflow: auto;
-      border: 3px solid #dc2626;
-      box-sizing: border-box;
+      border: 2px solid #dc2626;
+      background-image: repeating-linear-gradient(
+        45deg,
+        rgba(254, 226, 226, 0.7) 0px,
+        rgba(254, 226, 226, 0.7) 20px,
+        rgba(254, 242, 242, 0.7) 20px,
+        rgba(254, 242, 242, 0.7) 40px
+      );
+      background-attachment: fixed;
     }
+    /*
+     * 2. Composited Scroller (kScrollingOnCompositor) for comparison:
+     *    - `will-change: transform` + opaque background promotes this scroller
+     *      to its own dedicated cc::PictureLayer.
+     */
     #compositedScroller {
-      width: 300px;
-      height: 300px;
+      width: 320px;
+      height: 320px;
       overflow: auto;
-      border: 3px solid #16a34a;
+      border: 2px solid #16a34a;
       background: #ffffff;
       will-change: transform;
-      box-sizing: border-box;
     }
     .space {
-      width: 300px;
+      width: 1000px;
       height: 5000px;
-      box-sizing: border-box;
+      padding: 12px;
+      background-image: linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+      background-size: 100% 40px;
     }
     .row {
-      height: 50px;
-      line-height: 50px;
-      padding-left: 12px;
-      font-size: 18px;
-      font-weight: bold;
-      box-sizing: border-box;
-      border-bottom: 2px solid #334155;
-    }
-    .row-even {
-      background: rgba(254, 202, 202, 0.85);
-      color: #7f1d1d;
-    }
-    .row-odd {
-      background: rgba(191, 219, 254, 0.85);
-      color: #1e3a8a;
+      height: 40px;
+      line-height: 40px;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -83,15 +89,17 @@
   </div>
 
   <div class="containers">
-    <div class="box" id="mainBox">
-      <h3 id="mainTitle">1. Main-Thread-Painted Scroller (<code>#scroller</code>)</h3>
+    <div class="box">
+      <h3>1. Main-Thread-Painted Scroller (<code>#scroller</code>)</h3>
+      <p><small>Repaints on <code>CrRendererMain</code> every frame (flashes green in Paint Flashing)</small></p>
       <div id="scroller">
         <div class="space" id="mainSpace"></div>
       </div>
     </div>
 
-    <div class="box" id="compBox">
-      <h3 id="compTitle">2. Composited Scroller (<code>#compositedScroller</code>)</h3>
+    <div class="box">
+      <h3>2. Composited Scroller (<code>#compositedScroller</code>)</h3>
+      <p><small>Has its own <code>cc::PictureLayer</code> (300x5000); zero main-thread paint during scroll</small></p>
       <div id="compositedScroller">
         <div class="space" id="compSpace"></div>
       </div>
@@ -99,28 +107,11 @@
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode');
-    if (mode === 'main') {
-      document.body.classList.add('test-mode');
-      document.getElementById('hud').style.display = 'none';
-      document.getElementById('compBox').style.display = 'none';
-      document.getElementById('mainTitle').style.display = 'none';
-    } else if (mode === 'composited') {
-      document.body.classList.add('test-mode');
-      document.getElementById('hud').style.display = 'none';
-      document.getElementById('mainBox').style.display = 'none';
-      document.getElementById('compTitle').style.display = 'none';
-    } else {
-      document.getElementById('scroller').style.backgroundAttachment = 'fixed';
-    }
-
     for (const id of ['mainSpace', 'compSpace']) {
       const container = document.getElementById(id);
       let html = '';
-      for (let i = 0; i < 100; i++) {
-        const cls = (i % 2 === 0) ? 'row row-even' : 'row row-odd';
-        html += `<div class="${cls}">ROW #${i} (y=${i * 50}px)</div>`;
+      for (let i = 0; i < 120; i++) {
+        html += `<div class="row">Row #${i} — Scroll content item (${id})</div>`;
       }
       container.innerHTML = html;
     }
