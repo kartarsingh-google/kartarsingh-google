@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flinger Tracing</title>
+  <title>Finger Tracing</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
@@ -38,7 +38,7 @@
       overflow-x: hidden;
     }
 
-    /* Sticky Header with ONLY the Flinger Tracing Toggle */
+    /* Sticky Header with ONLY the Finger Tracing Toggle */
     .header-wrapper {
       position: sticky;
       top: 14px;
@@ -69,7 +69,7 @@
       margin: 0;
     }
 
-    /* Flinger Tracing Toggle Button */
+    /* Finger Tracing Toggle Button */
     .flinger-toggle-btn {
       display: inline-flex;
       align-items: center;
@@ -174,43 +174,38 @@
       margin: 0 0 22px 0;
     }
 
-    /* Disappearing Bubble Style */
-    .bubble {
+    /* Horizontal and Vertical Touch Lines */
+    .touch-line {
       position: fixed;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: radial-gradient(
-        circle at 32% 32%,
-        rgba(125, 211, 252, 0.9),
-        rgba(2, 132, 199, 0.55) 60%,
-        rgba(2, 132, 199, 0.15) 100%
-      );
-      border: 1.5px solid rgba(56, 189, 248, 0.95);
-      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.28), inset 0 1px 3px rgba(255, 255, 255, 0.85);
+      top: 0;
+      left: 0;
+      background-color: #0284c7;
+      box-shadow: 0 0 6px rgba(2, 132, 199, 0.45);
       pointer-events: none;
       z-index: 9999;
-      transform: translate(-50%, -50%);
-      animation: bubbleFadeOut 0.65s ease-out forwards;
+      display: none;
+      will-change: transform;
     }
 
-    @keyframes bubbleFadeOut {
-      0% {
-        opacity: 0.95;
-        transform: translate(-50%, -50%) scale(0.85);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(1.4);
-      }
+    .touch-line.horizontal {
+      width: 100vw;
+      height: 2px;
+    }
+
+    .touch-line.vertical {
+      width: 2px;
+      height: 100vh;
     }
   </style>
 </head>
 <body>
 
+  <div id="h-line" class="touch-line horizontal"></div>
+  <div id="v-line" class="touch-line vertical"></div>
+
   <header class="header-wrapper">
     <div class="header-bar">
-      <div class="app-title">Flinger Tracing</div>
+      <div class="app-title">Finger Tracing</div>
       <button
         type="button"
         id="flinger-toggle"
@@ -220,7 +215,7 @@
         <span class="toggle-switch-track">
           <span class="toggle-switch-thumb"></span>
         </span>
-        <span id="toggle-label">Flinger Tracing: ON</span>
+        <span id="toggle-label">Finger Tracing: ON</span>
       </button>
     </div>
   </header>
@@ -229,7 +224,7 @@
     <article class="reading-card prose">
       <h1>Scrollable Text &amp; Flinger Gesture Testbed</h1>
       <p>
-        Swipe or fling vertically across this page to test touch scrolling. When <strong>Flinger Tracing</strong> is enabled, disappearing bubbles trace your finger across the screen.
+        Swipe or fling vertically across this page to test touch scrolling. When <strong>Finger Tracing</strong> is enabled, horizontal and vertical crosshair lines track your finger across the screen on touch moves.
       </p>
 
       <h2>1. Touch Event Dispatch &amp; Compositor Scrolling</h2>
@@ -237,7 +232,7 @@
         When a user places their finger on a touchscreen and initiates a swipe gesture, the operating system's touch driver samples contact coordinates at high frequency. In modern browsers, these raw hardware samples are delivered to the renderer process and exposed through touch event streams.
       </p>
       <p>
-        Because the touch listener on this page is registered with <code>{ passive: true }</code> and removed completely when tracing is turned off, the browser's compositor thread never waits on JavaScript execution before initiating a scroll or fling gesture. Your scroll gestures remain hardware-accelerated and jank-free while the bubble trail renders on screen.
+        Because the touch listener on this page is registered with <code>{ passive: true }</code> and removed completely when tracing is turned off, the browser's compositor thread never waits on JavaScript execution before initiating a scroll or fling gesture. Your scroll gestures remain hardware-accelerated and jank-free while the crosshair lines animate on screen.
       </p>
       <p>
         Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
@@ -259,7 +254,7 @@
         One of the foundational architectural splits in modern browser engines is the separation between the Main Thread (where DOM layout, style recalculation, and JavaScript run) and the Compositor Thread (which receives raw input events from the browser process and composites tiled textures onto the GPU).
       </p>
       <p>
-        Because each tracing bubble uses <code>pointer-events: none</code> and fixed viewport coordinates, hit-testing passes straight through into the underlying scrollable document. The compositor updates the scroll offset immediately while forwarding passive input notifications.
+        Because the horizontal and vertical tracing lines use <code>pointer-events: none</code> and fixed viewport coordinates, hit-testing passes straight through into the underlying scrollable document. The compositor updates the scroll offset immediately while forwarding passive input notifications.
       </p>
       <p>
         At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.
@@ -267,7 +262,7 @@
 
       <h2>4. Visualizing Gesture Trajectories</h2>
       <p>
-        Inspecting touch and fling behavior visually is invaluable when diagnosing subtle input edge cases—such as diagonal drift during vertical flings, touch slop thresholds at gesture start, or velocity spikes near screen edges. A visual trail reveals the exact curvature and spacing of touch samples.
+        Inspecting touch and fling behavior visually is invaluable when diagnosing subtle input edge cases—such as diagonal drift during vertical flings, touch slop thresholds at gesture start, or main-thread vs. compositor-thread frame lag. Crosshair lines intersecting at the touch coordinate make it easy to compare finger position against document movement.
       </p>
       <p>
         Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.
@@ -306,18 +301,17 @@
   <script>
     const toggleBtn = document.getElementById('flinger-toggle');
     const toggleLabel = document.getElementById('toggle-label');
+    const hLine = document.getElementById('h-line');
+    const vLine = document.getElementById('v-line');
     let tracingEnabled = true;
 
     function onTouchMove(e) {
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.style.left = `${touch.clientX}px`;
-        bubble.style.top = `${touch.clientY}px`;
-        document.body.appendChild(bubble);
-        setTimeout(() => bubble.remove(), 650);
-      }
+      if (!e.touches.length) return;
+      const touch = e.touches[0];
+      hLine.style.display = 'block';
+      vLine.style.display = 'block';
+      hLine.style.transform = `translateY(${touch.clientY}px)`;
+      vLine.style.transform = `translateX(${touch.clientX}px)`;
     }
 
     function updateTracingListener() {
@@ -325,13 +319,15 @@
         window.addEventListener('touchmove', onTouchMove, { passive: true });
       } else {
         window.removeEventListener('touchmove', onTouchMove);
+        hLine.style.display = 'none';
+        vLine.style.display = 'none';
       }
     }
 
     toggleBtn.addEventListener('click', () => {
       tracingEnabled = !tracingEnabled;
       toggleBtn.setAttribute('aria-pressed', String(tracingEnabled));
-      toggleLabel.textContent = `Flinger Tracing: ${tracingEnabled ? 'ON' : 'OFF'}`;
+      toggleLabel.textContent = `Finger Tracing: ${tracingEnabled ? 'ON' : 'OFF'}`;
       updateTracingListener();
     });
 
